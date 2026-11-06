@@ -1,19 +1,46 @@
-<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="referrer" content="no-referrer"><meta name="robots" content="noindex,nofollow"><title>至誉 · 客户开发练习室</title><style>body{margin:0;background:#f5f6f1;color:#193c35;font:16px/1.8 system-ui,-apple-system,"PingFang SC",sans-serif}main{max-width:520px;margin:14vh auto;padding:30px}small{letter-spacing:2px;color:#60796b}h1{font-size:30px;line-height:1.5}p{color:#556b60}button{font:inherit;color:white;background:#20634e;border:0;border-radius:9px;padding:12px 20px;cursor:pointer}#retry{display:none}.track{height:4px;background:#e3eea9;margin:28px 0}</style></head><body><main><small>至誉 · 练习室</small><h1>每次20题，<br>把全流程学扎实。</h1><div class="track"></div><p id="status" role="status">正在打开学习资料…</p><button id="retry" onclick="location.reload()">重新打开</button><p>760题 · 38轮 · 无需登录<br>学习进度保存在你自己的浏览器。</p></main><script>
-(async()=>{
- const status=document.getElementById('status');
- try{
-  const supplied=new URLSearchParams(location.hash.slice(1)).get('s');let saved='';try{saved=localStorage.getItem('zhiyu-share-key-v1')||''}catch{}
-  const code=supplied||saved;
-  if(!/^[A-Za-z0-9_-]{43}$/.test(code)){status.textContent='请使用Lucinda发给你的完整学习链接打开（包含#后面的内容）。';return;}
-  if(!crypto.subtle)throw Error('browser');
-  const keyBytes=Uint8Array.from(atob(code.replace(/-/g,'+').replace(/_/g,'/')+'='),c=>c.charCodeAt(0));
-  const key=await crypto.subtle.importKey('raw',keyBytes,'AES-GCM',false,['decrypt']);
-  const r=await fetch('./content.bin?v=61a135655110cf6a');if(!r.ok)throw Error('network');const bytes=new Uint8Array(await r.arrayBuffer());
-  const raw=await crypto.subtle.decrypt({name:'AES-GCM',iv:bytes.slice(0,12)},key,bytes.slice(12));const data=JSON.parse(new TextDecoder().decode(raw));
-  window.ZHIYU_PDF=URL.createObjectURL(new Blob([Uint8Array.from(atob(data.pdf),c=>c.charCodeAt(0))],{type:'application/pdf'}));
-  const coverage=data.coverage.replaceAll('/source.pdf#page=',window.ZHIYU_PDF+'#page=').replace('href="/learn"','href="'+location.href.replace(/&/g,'&amp;').replace(/"/g,'&quot;')+'"');
-  window.ZHIYU_COVERAGE=URL.createObjectURL(new Blob([coverage],{type:'text/html;charset=utf-8'}));
-  try{localStorage.setItem('zhiyu-share-key-v1',code)}catch{}
-  document.open();document.write(data.html);document.close();
- }catch(e){status.textContent=e.message==='browser'?'请使用最新版Chrome、Edge或Safari，并通过https网址打开。':e.name==='OperationError'?'学习链接不完整或已更新，请向Lucinda获取最新完整链接。':'暂时未能加载资料，请检查网络后重试。';document.getElementById('retry').style.display='inline-block';}
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="referrer" content="no-referrer"><meta name="robots" content="noindex,nofollow"><title>至誉 · 客户开发练习室</title><style>body{margin:0;background:#f5f6f1;color:#193c35;font:16px/1.8 system-ui,-apple-system,"PingFang SC",sans-serif}main{max-width:520px;margin:14vh auto;padding:30px}small{letter-spacing:2px;color:#60796b}h1{font-size:30px;line-height:1.5}p{color:#556b60}button{font:inherit;color:white;background:#20634e;border:0;border-radius:9px;padding:12px 20px;cursor:pointer}[hidden]{display:none!important}*{box-sizing:border-box}textarea{display:block;width:100%;min-height:110px;margin:8px 0 14px;padding:12px;border:1px solid #8da699;border-radius:9px;background:#fff;color:#193c35;font:16px/1.6 system-ui,-apple-system,sans-serif;resize:vertical;overflow-wrap:anywhere}label{font-weight:600}button:disabled{opacity:.6;cursor:wait}.hint{font-size:14px}textarea:focus-visible,button:focus-visible{outline:3px solid #79994c;outline-offset:3px}@media(max-width:480px){main{margin:4vh auto;padding:24px}h1{font-size:28px}#openQuiz{width:100%}}.track{height:4px;background:#e3eea9;margin:28px 0}</style></head><body><main><small>至誉 · 练习室</small><h1>每次20题，<br>把全流程学扎实。</h1><div class="track"></div><p id="status" role="status">正在打开学习资料…</p><form id="linkForm" hidden><label for="shareLink">粘贴群里的完整题库链接</label><textarea id="shareLink" placeholder="长按此处粘贴完整链接（包含 # 后面的内容）" autocomplete="off" autocapitalize="off" spellcheck="false" aria-describedby="linkHint"></textarea><p id="linkHint" class="hint">回到群聊，复制完整网址，再粘贴到这里。无需注册或登录。</p><button id="openQuiz" type="submit">进入题库</button></form><button id="retry" type="button" hidden>重新加载资料</button><p>760题 · 38轮 · 无需登录<br>学习进度保存在你自己的浏览器。</p></main><script>
+(()=>{
+ const status=document.getElementById('status'),form=document.getElementById('linkForm'),input=document.getElementById('shareLink'),submit=document.getElementById('openQuiz'),retry=document.getElementById('retry');
+ const validCode=code=>/^[A-Za-z0-9_-]{43}$/.test(code||'');
+ function readLink(value){
+  const text=String(value||'').trim();
+  if(validCode(text))return text;
+  const match=text.match(/#s=([A-Za-z0-9_-]{43})(?![A-Za-z0-9_-])/);
+  return match?match[1]:'';
+ }
+ let busy=false,lastCode='';
+ function showForm(message){status.textContent=message;form.hidden=false;}
+ async function openQuiz(code){
+  if(busy)return;
+  retry.hidden=true;
+  if(!validCode(code)){showForm('这次打开的链接没有带全分享信息。把完整链接粘贴到下方，就可以继续进入。');return;}
+  busy=true;lastCode=code;submit.disabled=true;status.textContent='正在打开学习资料…';
+  try{
+   if(!crypto.subtle)throw Error('browser');
+   const keyBytes=Uint8Array.from(atob(code.replace(/-/g,'+').replace(/_/g,'/')+'='),c=>c.charCodeAt(0));
+   const key=await crypto.subtle.importKey('raw',keyBytes,'AES-GCM',false,['decrypt']);
+   const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),25000);
+   let bytes;
+   try{const r=await fetch('./content.bin?v=61a135655110cf6a',{signal:controller.signal});if(!r.ok)throw Error('network');bytes=new Uint8Array(await r.arrayBuffer());}finally{clearTimeout(timeout);}
+   const raw=await crypto.subtle.decrypt({name:'AES-GCM',iv:bytes.slice(0,12)},key,bytes.slice(12));const data=JSON.parse(new TextDecoder().decode(raw));
+   window.ZHIYU_PDF=URL.createObjectURL(new Blob([Uint8Array.from(atob(data.pdf),c=>c.charCodeAt(0))],{type:'application/pdf'}));
+   const fullLink=location.origin+location.pathname+'#s='+code;
+   const coverage=data.coverage.replaceAll('/source.pdf#page=',window.ZHIYU_PDF+'#page=').replace('href="/learn"','href="'+fullLink.replace(/&/g,'&amp;').replace(/"/g,'&quot;')+'"');
+   window.ZHIYU_COVERAGE=URL.createObjectURL(new Blob([coverage],{type:'text/html;charset=utf-8'}));
+   try{localStorage.setItem('zhiyu-share-key-v1',code)}catch{}
+   try{history.replaceState(null,'',fullLink)}catch{}
+   window.removeEventListener('hashchange',onHashChange);
+   document.open();document.write(data.html);document.close();
+  }catch(e){
+   if(e.message==='browser'){showForm('当前浏览器不支持打开资料，请用新版Safari、Chrome或Edge打开完整链接。');}
+   else if(e.name==='OperationError'){showForm('这份链接的分享信息无法打开题库，请重新粘贴群里的完整链接。');}
+   else{status.textContent='资料暂时未能加载，请检查网络后点击重新加载。';retry.hidden=false;}
+  }finally{busy=false;submit.disabled=false;}
+ }
+ function onHashChange(){const code=new URLSearchParams(location.hash.slice(1)).get('s');if(validCode(code))return openQuiz(code);}
+ form.addEventListener('submit',event=>{event.preventDefault();const code=readLink(input.value);if(!code){showForm('没有识别到完整分享信息，请复制整条网址，包括 # 后面的全部内容。');input.focus();return;}return openQuiz(code);});
+ retry.addEventListener('click',()=>openQuiz(lastCode));
+ window.addEventListener('hashchange',onHashChange);
+ const supplied=new URLSearchParams(location.hash.slice(1)).get('s');let saved='';try{saved=localStorage.getItem('zhiyu-share-key-v1')||''}catch{}
+ openQuiz(supplied||saved);
 })();</script></body></html>
