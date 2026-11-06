@@ -1,0 +1,19 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="referrer" content="no-referrer"><meta name="robots" content="noindex,nofollow"><title>至誉 · 客户开发练习室</title><style>body{margin:0;background:#f5f6f1;color:#193c35;font:16px/1.8 system-ui,-apple-system,"PingFang SC",sans-serif}main{max-width:520px;margin:14vh auto;padding:30px}small{letter-spacing:2px;color:#60796b}h1{font-size:30px;line-height:1.5}p{color:#556b60}button{font:inherit;color:white;background:#20634e;border:0;border-radius:9px;padding:12px 20px;cursor:pointer}#retry{display:none}.track{height:4px;background:#e3eea9;margin:28px 0}</style></head><body><main><small>至誉 · 练习室</small><h1>每次20题，<br>把全流程学扎实。</h1><div class="track"></div><p id="status" role="status">正在打开学习资料…</p><button id="retry" onclick="location.reload()">重新打开</button><p>760题 · 38轮 · 无需登录<br>学习进度保存在你自己的浏览器。</p></main><script>
+(async()=>{
+ const status=document.getElementById('status');
+ try{
+  const supplied=new URLSearchParams(location.hash.slice(1)).get('s');let saved='';try{saved=localStorage.getItem('zhiyu-share-key-v1')||''}catch{}
+  const code=supplied||saved;
+  if(!/^[A-Za-z0-9_-]{43}$/.test(code)){status.textContent='请使用Lucinda发给你的完整学习链接打开（包含#后面的内容）。';return;}
+  if(!crypto.subtle)throw Error('browser');
+  const keyBytes=Uint8Array.from(atob(code.replace(/-/g,'+').replace(/_/g,'/')+'='),c=>c.charCodeAt(0));
+  const key=await crypto.subtle.importKey('raw',keyBytes,'AES-GCM',false,['decrypt']);
+  const r=await fetch('./content.bin?v=61a135655110cf6a');if(!r.ok)throw Error('network');const bytes=new Uint8Array(await r.arrayBuffer());
+  const raw=await crypto.subtle.decrypt({name:'AES-GCM',iv:bytes.slice(0,12)},key,bytes.slice(12));const data=JSON.parse(new TextDecoder().decode(raw));
+  window.ZHIYU_PDF=URL.createObjectURL(new Blob([Uint8Array.from(atob(data.pdf),c=>c.charCodeAt(0))],{type:'application/pdf'}));
+  const coverage=data.coverage.replaceAll('/source.pdf#page=',window.ZHIYU_PDF+'#page=').replace('href="/learn"','href="'+location.href.replace(/&/g,'&amp;').replace(/"/g,'&quot;')+'"');
+  window.ZHIYU_COVERAGE=URL.createObjectURL(new Blob([coverage],{type:'text/html;charset=utf-8'}));
+  try{localStorage.setItem('zhiyu-share-key-v1',code)}catch{}
+  document.open();document.write(data.html);document.close();
+ }catch(e){status.textContent=e.message==='browser'?'请使用最新版Chrome、Edge或Safari，并通过https网址打开。':e.name==='OperationError'?'学习链接不完整或已更新，请向Lucinda获取最新完整链接。':'暂时未能加载资料，请检查网络后重试。';document.getElementById('retry').style.display='inline-block';}
+})();</script></body></html>
