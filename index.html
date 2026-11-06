@@ -19,9 +19,9 @@
    if(!crypto.subtle)throw Error('browser');
    const keyBytes=Uint8Array.from(atob(code.replace(/-/g,'+').replace(/_/g,'/')+'='),c=>c.charCodeAt(0));
    const key=await crypto.subtle.importKey('raw',keyBytes,'AES-GCM',false,['decrypt']);
-   const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),25000);
+   const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),120000),slowNotice=setTimeout(()=>{status.textContent='正在加载760题完整资料，网络较慢时请稍等…';},12000);
    let bytes;
-   try{const r=await fetch('./content.bin?v=61a135655110cf6a',{signal:controller.signal});if(!r.ok)throw Error('network');bytes=new Uint8Array(await r.arrayBuffer());}finally{clearTimeout(timeout);}
+   try{const r=await fetch('./content.bin?v=61a135655110cf6a',{signal:controller.signal});if(!r.ok)throw Error('network');bytes=new Uint8Array(await r.arrayBuffer());}finally{clearTimeout(timeout);clearTimeout(slowNotice);}
    const raw=await crypto.subtle.decrypt({name:'AES-GCM',iv:bytes.slice(0,12)},key,bytes.slice(12));const data=JSON.parse(new TextDecoder().decode(raw));
    window.ZHIYU_PDF=URL.createObjectURL(new Blob([Uint8Array.from(atob(data.pdf),c=>c.charCodeAt(0))],{type:'application/pdf'}));
    const fullLink=location.origin+location.pathname+'#s='+code;
@@ -32,6 +32,7 @@
    window.removeEventListener('hashchange',onHashChange);
    document.open();document.write(data.html);document.close();
   }catch(e){
+   console.warn('Learning materials could not load:',e.name,e.message);
    if(e.message==='browser'){showForm('当前浏览器不支持打开资料，请用新版Safari、Chrome或Edge打开完整链接。');}
    else if(e.name==='OperationError'){showForm('这份链接的分享信息无法打开题库，请重新粘贴群里的完整链接。');}
    else{status.textContent='资料暂时未能加载，请检查网络后点击重新加载。';retry.hidden=false;}
