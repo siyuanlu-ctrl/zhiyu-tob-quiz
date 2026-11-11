@@ -21,7 +21,7 @@
    const key=await crypto.subtle.importKey('raw',keyBytes,'AES-GCM',false,['decrypt']);
    const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),120000),slowNotice=setTimeout(()=>{status.textContent='正在加载760题完整资料，网络较慢时请稍等…';},12000);
    let bytes;
-   try{const r=await fetch('./content.bin?v=61a135655110cf6a',{signal:controller.signal});if(!r.ok)throw Error('network');bytes=new Uint8Array(await r.arrayBuffer());}finally{clearTimeout(timeout);clearTimeout(slowNotice);}
+   try{const r=await fetch('./content.bin?v=0b974af384d6e8ba',{signal:controller.signal});if(!r.ok)throw Error('network');bytes=new Uint8Array(await r.arrayBuffer());}finally{clearTimeout(timeout);clearTimeout(slowNotice);}
    const raw=await crypto.subtle.decrypt({name:'AES-GCM',iv:bytes.slice(0,12)},key,bytes.slice(12));const data=JSON.parse(new TextDecoder().decode(raw));
    window.ZHIYU_PDF=URL.createObjectURL(new Blob([Uint8Array.from(atob(data.pdf),c=>c.charCodeAt(0))],{type:'application/pdf'}));
    const fullLink=location.origin+location.pathname+'#s='+code;
